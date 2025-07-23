@@ -43,6 +43,8 @@ public final class CameraScannerViewController: UIViewController {
     /// Whether flash is enabled
     private var flashEnabled = false
 
+    private var orientation: UIDeviceOrientation = .portrait
+
     override public func viewDidLoad() {
         super.viewDidLoad()
         setupView()
@@ -58,6 +60,23 @@ public final class CameraScannerViewController: UIViewController {
 
     override public func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+
+        if let connection = videoPreviewLayer.connection {
+            let currentDevice = UIDevice.current
+            orientation = currentDevice.orientation
+
+            let previewLayerConnection: AVCaptureConnection = connection
+
+            if previewLayerConnection.isVideoOrientationSupported {
+                switch orientation {
+                case .portrait: self.updatePreviewLayer(layer: previewLayerConnection, orientation: .portrait)
+                case .landscapeRight: self.updatePreviewLayer(layer: previewLayerConnection, orientation: .landscapeLeft)
+                case .landscapeLeft: self.updatePreviewLayer(layer: previewLayerConnection, orientation: .landscapeRight)
+                case .portraitUpsideDown: self.updatePreviewLayer(layer: previewLayerConnection, orientation: .portraitUpsideDown)
+                default: self.updatePreviewLayer(layer: previewLayerConnection, orientation: .portrait)
+                }
+            }
+        }
 
         videoPreviewLayer.frame = view.layer.bounds
     }
@@ -101,6 +120,11 @@ public final class CameraScannerViewController: UIViewController {
             quadView.leadingAnchor.constraint(equalTo: view.leadingAnchor)
         ]
         NSLayoutConstraint.activate(quadViewConstraints)
+    }
+
+    private func updatePreviewLayer(layer: AVCaptureConnection, orientation: AVCaptureVideoOrientation) {
+        layer.videoOrientation = orientation
+        videoPreviewLayer.frame = view.bounds
     }
 
     /// Called when the AVCaptureDevice detects that the subject area has changed significantly. When it's called,
@@ -188,10 +212,11 @@ extension CameraScannerViewController: RectangleDetectionDelegateProtocol {
             return
         }
 
-        let portraitImageSize = CGSize(width: imageSize.height, height: imageSize.width)
+        let rotationAngle = orientation == .portrait ? CGFloat.pi / 2.0 : orientation == .landscapeLeft ? 0 : CGFloat.pi
+        let portraitImageSize = orientation == .portrait ? CGSize(width: imageSize.height, height: imageSize.width) : CGSize(width: imageSize.width, height: imageSize.height)
         let scaleTransform = CGAffineTransform.scaleTransform(forSize: portraitImageSize, aspectFillInSize: quadView.bounds.size)
         let scaledImageSize = imageSize.applying(scaleTransform)
-        let rotationTransform = CGAffineTransform(rotationAngle: CGFloat.pi / 2.0)
+        let rotationTransform = CGAffineTransform(rotationAngle: rotationAngle)
         let imageBounds = CGRect(origin: .zero, size: scaledImageSize).applying(rotationTransform)
         let translationTransform = CGAffineTransform.translateTransform(fromCenterOfRect: imageBounds, toCenterOfRect: quadView.bounds)
         let transforms = [scaleTransform, rotationTransform, translationTransform]

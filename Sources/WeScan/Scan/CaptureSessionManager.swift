@@ -335,12 +335,18 @@ extension CaptureSessionManager: AVCapturePhotoCaptureDelegate {
                 return
             }
 
-            var angle: CGFloat = 0.0
+            let currentDevice = UIDevice.current
+            let orientation = currentDevice.orientation
 
-            switch image.imageOrientation {
-            case .right:
-                angle = CGFloat.pi / 2
-            case .up:
+            var rotatedImage = image
+            var angle: CGFloat = CGFloat.pi / 2
+
+            switch orientation {
+            case .landscapeLeft:
+                rotatedImage = UIImage(cgImage: image.cgImage!, scale: 1.0, orientation: .down)
+                angle = 0
+            case .landscapeRight:
+                rotatedImage = UIImage(cgImage: image.cgImage!, scale: 1.0, orientation: .up)
                 angle = CGFloat.pi
             default:
                 break
@@ -349,14 +355,14 @@ extension CaptureSessionManager: AVCapturePhotoCaptureDelegate {
             var quad: Quadrilateral?
             if let displayedRectangleResult = self?.displayedRectangleResult {
                 quad = self?.displayRectangleResult(rectangleResult: displayedRectangleResult)
-                quad = quad?.scale(displayedRectangleResult.imageSize, image.size, withRotationAngle: angle)
+                quad = quad?.scale(displayedRectangleResult.imageSize, rotatedImage.size, withRotationAngle: angle)
             }
 
             DispatchQueue.main.async {
                 guard let self else {
                     return
                 }
-                self.delegate?.captureSessionManager(self, didCapturePicture: image, withQuad: quad)
+                self.delegate?.captureSessionManager(self, didCapturePicture: rotatedImage, withQuad: quad)
             }
         }
     }
