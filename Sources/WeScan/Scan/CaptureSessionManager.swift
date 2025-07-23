@@ -322,6 +322,8 @@ extension CaptureSessionManager: AVCapturePhotoCaptureDelegate {
     /// Completes the image capture by processing the image, and passing it to the delegate object.
     /// This function is necessary because the capture functions for iOS 10 and 11 are decoupled.
     private func completeImageCapture(with imageData: Data) {
+        let interfaceOrientation = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.interfaceOrientation ?? .portrait
+
         DispatchQueue.global(qos: .background).async { [weak self] in
             CaptureSession.current.isEditing = true
             guard let image = UIImage(data: imageData) else {
@@ -335,13 +337,19 @@ extension CaptureSessionManager: AVCapturePhotoCaptureDelegate {
                 return
             }
 
-            var angle: CGFloat = 0.0
+            var rotatedImage = image
+            var angle: CGFloat = .pi / 2
 
-            switch image.imageOrientation {
-            case .right:
-                angle = CGFloat.pi / 2
-            case .up:
-                angle = CGFloat.pi
+            switch interfaceOrientation {
+            case .landscapeRight:
+                rotatedImage = UIImage(cgImage: image.cgImage!, scale: 1.0, orientation: .down)
+                angle = 0
+            case .landscapeLeft:
+                rotatedImage = UIImage(cgImage: image.cgImage!, scale: 1.0, orientation: .up)
+                angle = .pi
+            case .portraitUpsideDown:
+                rotatedImage = UIImage(cgImage: image.cgImage!, scale: 1.0, orientation: .left)
+                angle = -.pi / 2
             default:
                 break
             }
@@ -349,14 +357,14 @@ extension CaptureSessionManager: AVCapturePhotoCaptureDelegate {
             var quad: Quadrilateral?
             if let displayedRectangleResult = self?.displayedRectangleResult {
                 quad = self?.displayRectangleResult(rectangleResult: displayedRectangleResult)
-                quad = quad?.scale(displayedRectangleResult.imageSize, image.size, withRotationAngle: angle)
+                quad = quad?.scale(displayedRectangleResult.imageSize, rotatedImage.size, withRotationAngle: angle)
             }
 
             DispatchQueue.main.async {
                 guard let self else {
                     return
                 }
-                self.delegate?.captureSessionManager(self, didCapturePicture: image, withQuad: quad)
+                self.delegate?.captureSessionManager(self, didCapturePicture: rotatedImage, withQuad: quad)
             }
         }
     }

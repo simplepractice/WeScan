@@ -46,7 +46,7 @@ public final class ScannerViewController: UIViewController {
     private lazy var autoScanButton: UIBarButtonItem = {
         let title = NSLocalizedString("wescan.scanning.auto", tableName: nil, bundle: Bundle(for: ScannerViewController.self), value: "Auto", comment: "The auto button state")
         let button = UIBarButtonItem(title: title, style: .plain, target: self, action: #selector(toggleAutoScan))
-        button.tintColor = .white
+        button.tintColor = navigationController?.navigationBar.tintColor
 
         return button
     }()
@@ -54,7 +54,7 @@ public final class ScannerViewController: UIViewController {
     private lazy var flashButton: UIBarButtonItem = {
         let image = UIImage(systemName: "bolt.fill", named: "flash", in: Bundle(for: ScannerViewController.self), compatibleWith: nil)
         let button = UIBarButtonItem(image: image, style: .plain, target: self, action: #selector(toggleFlash))
-        button.tintColor = .white
+        button.tintColor = navigationController?.navigationBar.tintColor
 
         return button
     }()
@@ -99,6 +99,21 @@ public final class ScannerViewController: UIViewController {
 
     override public func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+
+        if let connection = videoPreviewLayer.connection, connection.isVideoOrientationSupported {
+            let interfaceOrientation = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.interfaceOrientation ?? .portrait
+
+            switch interfaceOrientation {
+            case .portraitUpsideDown:
+                connection.videoOrientation = .portraitUpsideDown
+            case .landscapeLeft:
+                connection.videoOrientation = .landscapeLeft
+            case .landscapeRight:
+                connection.videoOrientation = .landscapeRight
+            default:
+                connection.videoOrientation = .portrait
+            }
+        }
 
         videoPreviewLayer.frame = view.layer.bounds
     }
@@ -304,12 +319,30 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
             return
         }
 
-        let portraitImageSize = CGSize(width: imageSize.height, height: imageSize.width)
+        let statusBarOrientation = UIApplication.shared.statusBarOrientation
+
+        let rotationAngle: CGFloat
+        let portraitImageSize: CGSize
+
+        switch statusBarOrientation {
+        case .portrait:
+            rotationAngle = .pi / 2
+            portraitImageSize = CGSize(width: imageSize.height, height: imageSize.width)
+        case .landscapeLeft:
+            rotationAngle = .pi
+            portraitImageSize = imageSize
+        case .portraitUpsideDown:
+            rotationAngle = -.pi / 2
+            portraitImageSize = CGSize(width: imageSize.height, height: imageSize.width)
+        @unknown default:
+            rotationAngle = 0
+            portraitImageSize = imageSize
+        }
 
         let scaleTransform = CGAffineTransform.scaleTransform(forSize: portraitImageSize, aspectFillInSize: quadView.bounds.size)
         let scaledImageSize = imageSize.applying(scaleTransform)
 
-        let rotationTransform = CGAffineTransform(rotationAngle: CGFloat.pi / 2.0)
+        let rotationTransform = CGAffineTransform(rotationAngle: rotationAngle)
 
         let imageBounds = CGRect(origin: .zero, size: scaledImageSize).applying(rotationTransform)
 

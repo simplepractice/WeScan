@@ -34,16 +34,12 @@ final class ReviewViewController: UIViewController {
             in: Bundle(for: ScannerViewController.self),
             compatibleWith: nil
         )
-        let button = UIBarButtonItem(image: image, style: .plain, target: self, action: #selector(toggleEnhancedImage))
-        button.tintColor = .white
-        return button
+        return UIBarButtonItem(image: image, style: .plain, target: self, action: #selector(toggleEnhancedImage))
     }()
 
     private lazy var rotateButton: UIBarButtonItem = {
         let image = UIImage(systemName: "rotate.right", named: "rotate", in: Bundle(for: ScannerViewController.self), compatibleWith: nil)
-        let button = UIBarButtonItem(image: image, style: .plain, target: self, action: #selector(rotateImage))
-        button.tintColor = .white
-        return button
+        return UIBarButtonItem(image: image, style: .plain, target: self, action: #selector(rotateImage))
     }()
 
     private lazy var doneButton: UIBarButtonItem = {
@@ -136,6 +132,14 @@ final class ReviewViewController: UIViewController {
         NSLayoutConstraint.activate(imageViewConstraints)
     }
 
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+
+        let isDark = traitCollection.userInterfaceStyle == .dark
+        enhanceButton.tintColor = isDark ? .white : .black
+        rotateButton.tintColor = isDark ? .white : .black
+    }
+
     // MARK: - Actions
 
     @objc private func reloadImage() {
@@ -176,6 +180,10 @@ final class ReviewViewController: UIViewController {
         newResults.croppedScan.rotate(by: rotationAngle)
         newResults.enhancedScan?.rotate(by: rotationAngle)
         newResults.doesUserPreferEnhancedScan = isCurrentlyDisplayingEnhancedImage
+
+        if isCurrentlyDisplayingEnhancedImage, let enhancedScan = newResults.enhancedScan {
+            newResults.croppedScan = enhancedScan
+        }
         imageScannerController.imageScannerDelegate?
             .imageScannerController(imageScannerController, didFinishScanningWithResults: newResults)
     }
